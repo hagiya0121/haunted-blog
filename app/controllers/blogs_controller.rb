@@ -2,16 +2,18 @@
 
 class BlogsController < ApplicationController
   skip_before_action :authenticate_user!, only: %i[index show]
-
-  before_action :set_blog, only: %i[show edit update destroy]
-  before_action :authorize_blog_owner, only: %i[edit update destroy]
+  before_action :set_blog, only: %i[edit update destroy]
 
   def index
     @blogs = Blog.search(params[:term]).published.default_order
   end
 
   def show
-    redirect_to root_path if @blog.secret && @blog.user != current_user
+    @blog = if current_user.nil?
+              Blog.published.find(params[:id])
+            else
+              current_user.blogs.or(Blog.published).find(params[:id])
+            end
   end
 
   def new
@@ -46,14 +48,8 @@ class BlogsController < ApplicationController
 
   private
 
-  def authorize_blog_owner
-    return if @blog.user == current_user
-
-    redirect_to root_path
-  end
-
   def set_blog
-    @blog = Blog.find(params[:id])
+    @blog = current_user.blogs.find(params[:id])
   end
 
   def blog_params
